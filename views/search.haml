@@ -1,0 +1,31 @@
+%script{:type => 'text/javascript', :src  => '/js/jquery-1.4.2.min.js'}
+
+/ [if IE]
+  %script{:type => 'text/javascript',
+          :src  => '/js/excanvas.compiled.js'}
+%script{:type => 'text/javascript',
+        :src  => '/js/jquery.qtip-1.0.0-rc3.js'}
+%script{:type => 'text/javascript',
+        :src  => '/js/main.js'}
+
+%h1
+  %a(href='/') XYzon
+
+= haml :search_form, :layout => false
+
+%table.unselectable
+  %tr
+    %td
+      #graph-area
+    %td.default-cursor(valign="top")
+      ↑
+      %br/
+      売れ筋
+  %tr
+    %td
+      #x-axis-scale
+      %span.default-cursor(style="float:right;")
+        → 高い
+      %span.default-cursor
+        安い ←
+    %td

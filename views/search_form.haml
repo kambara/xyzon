@@ -1,0 +1,96 @@
+%form.search(method = "get"
+             action = "/search")
+  %select.large-font(name="category")
+    %option{:value => 'Books',
+            :selected => params[:category] == 'Books'}
+      本・漫画・雑誌
+    %option{:value => 'ForeignBooks',
+            :selected => params[:category] == 'ForeignBooks'}
+      洋書
+
+    %option ----------
+
+    %option{:value => 'DVD',
+            :selected => params[:category] == 'DVD'}
+      DVD
+    %option{:value => 'Music',
+            :selected => params[:category] == 'Music'}
+      ミュージック
+    %option{:value => 'Classical',
+            :selected => params[:category] == 'Classical'}
+      クラシック
+    %option{:value => 'VideoGames',
+            :selected => params[:category] == 'VideoGames'}
+      ゲーム
+
+    %option ----------
+
+    %option{:value => 'Electronics',
+            :selected => params[:category] == 'Electronics'}
+      エレクトロニクス
+    %option{:value => 'Software',
+            :selected => params[:category] == 'Software'}
+      ソフトウェア
+    %option{:value => "OfficeProducts",
+            :selected => params[:category] == 'OfficeProducts'}
+      オフィス用品
+
+    %option ----------
+
+    %option{:value => 'Grocery',
+            :selected => params[:category] == 'Grocery'}
+      食品＆飲料
+    %option{:value => 'Kitchen',
+            :selected => params[:category] == 'Kitchen'}
+      キッチン
+    
+    %option ----------
+
+    %option{:value => 'Toys',
+            :selected => params[:category] == 'Toys'}
+      おもちゃ
+    %option{:value => 'Hobbies',
+            :selected => params[:category] == 'Hobbies'}
+      ホビー
+    %option{:value => 'Baby',
+            :selected => params[:category] == 'Baby'}
+      ベビー
+
+    %option ----------
+
+    %option{:value => 'HealthPersonalCare',
+            :selected => params[:category] == 'HealthPersonalCare'}
+      ヘルスケア
+    %option{:value => 'Beauty',
+            :selected => params[:category] == 'Beauty'}
+      ビューティー
+    
+    %option ----------
+
+    %option{:value => 'Apparel',
+            :selected => params[:category] == 'Apparel'}
+      ファッション
+    %option{:value => 'Shoes',
+            :selected => params[:category] == 'Shoes'}
+      靴
+    %option{:value => 'Watches',
+            :selected => params[:category] == 'Watches'}
+      時計
+    %option{:value => 'Jewelry',
+            :selected => params[:category] == 'Jewelry'}
+      ジュエリー
+
+    %option ----------
+    
+    %option{:value => 'HomeImprovement',
+            :selected => params[:category] == 'HomeImprovement'}
+      DIY
+    %option{:value => 'SportingGoods',
+            :selected => params[:category] == 'SportingGoods'}
+      スポーツ
+
+  %input.keyword.bold.large-font(type = "text"
+                 name = "keyword"
+                 value = @keyword)
+  %input.large-font(type = "submit"
+         value = "検索")
