@@ -1,3 +1,9 @@
+/*
+TODO:
+- デザイン
+- ズーム時どこにいるか
+*/
+
 $(function() {
     $(".unselectable").unselectable();
     var xyGraph = new XYGraph(650, 500);
@@ -161,7 +167,9 @@ XYGraphArea.prototype = {
             self.onMousedown(event);
         });
 
-        $("body").mousemove(function(event) {
+        $("body").mousedown(function() {
+            self.removeAllDetail();
+        }).mousemove(function(event) {
             self.onMousemove(event);
         }).mouseup(function(event) {
             self.onMouseup(event);
@@ -170,11 +178,34 @@ XYGraphArea.prototype = {
     },
 
     onMousedown: function(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (this.dragging) return;
+        if (this.isAnyDetailShowing()) {
+            this.removeAllDetail();
+            return;
+        }
+        
         this.dragging = true;
         this.selector.start(event.pageX,
                             event.pageY);
         this.selector.show();
-        $.log(event.pageX+" "+event.pageY);
+        $.each(this.graphItems, function(i, item) {
+            item.inactivateTip();
+        });
+    },
+
+    isAnyDetailShowing: function() {
+        return $.any(this.graphItems,
+                     function(i, item) {
+                         return item.isDetailShowing();
+                     });
+    },
+
+    removeAllDetail: function() {
+        $.each(this.graphItems, function(i, item) {
+            item.removeDetail();
+        });
     },
 
     onMousemove: function(event) {
@@ -206,6 +237,9 @@ XYGraphArea.prototype = {
                 )
             );
         }
+        $.each(this.graphItems, function(i, item) {
+            item.activateTip();
+        });
     },
 
     zoomIn: function(xRange, yRange) {
@@ -394,8 +428,8 @@ Selector.prototype = {
 //
 function XYGraphItem(itemElem) {
     this.item = $(itemElem);
+    this.tipIsActive = true;
     this.image = this.createImage();
-    //this.tip = this.createTip();
 }
 XYGraphItem.prototype = {
     getDetailPageURL: function() {
@@ -478,7 +512,7 @@ XYGraphItem.prototype = {
         return comments;
     },
 
-    createImage: function() {
+    createImage: function() { // Thumbnail Image
         var self = this;
         var thumb = this.getTinyImageInfo();
         return $("<img/>").attr({
@@ -492,6 +526,7 @@ XYGraphItem.prototype = {
             //display: "block",
             cursor: "pointer",
             border: "3px solid #DDDDDD",
+            "background-color": "#FFFFFF",
             "z-index": self.getZIndex()
         }).mouseover(function() {
             self.onMouseover();
@@ -523,11 +558,36 @@ XYGraphItem.prototype = {
         });
     },
 
+    activateTip: function() {
+        this.tipIsActive = true;
+        this.image.css({
+            cursor: "pointer"
+        });
+    },
+
+    inactivateTip: function() {
+        this.tipIsActive = false;
+        this.image.css({
+            cursor: "crosshair"
+        });
+    },
+
+    isDetailShowing: function() {
+        if (!this.detail) return false;
+        return this.detail.isAlive;
+    },
+
+    removeDetail: function() {
+        if (this.detail) {
+            this.detail.fadeoutAndRemove();
+        }
+    },
+
     isTipRight: function() {
         return (this.image.offset().left < 400);
     },
 
-    createTip: function() {
+    createTip: function() { // Summary tip while mouseover
         var self = this;
         var summaryHtml = ([this.getPrice() + "円",
                             "星" + this.getRating()
@@ -550,7 +610,7 @@ XYGraphItem.prototype = {
             },
             position: {
                 corner: {
-                    target: isRight ? "rightTop" : "leftTop",
+                    target:  isRight ? "rightTop" : "leftTop",
                     tooltip: isRight ? "leftTop" : "rightTop"
                 },
                 adjust: {
@@ -560,6 +620,11 @@ XYGraphItem.prototype = {
             show: {
                 ready: true,
                 delay: 0
+            },
+            api: {
+                beforeShow: function() {
+                    return self.tipIsActive;
+                }
             }
         });
     },
@@ -590,6 +655,7 @@ XYGraphItem.prototype = {
     },
 
     onMouseover: function() {
+        if (!this.tipIsActive) return;
         if (!this.tip) {
             this.tip = this.createTip();
         }
@@ -604,7 +670,10 @@ XYGraphItem.prototype = {
     onMousedown: function(event) {
         event.stopPropagation();
         this.tip.qtip("hide");
-        new XYGraphDetail(this);
+        if (this.detail) {
+            delete this.detail;
+        }
+        this.detail = new XYGraphDetail(this);
     }
 };
 
@@ -612,6 +681,8 @@ XYGraphItem.prototype = {
 // XYGraphDetail
 //
 function XYGraphDetail(graphItem) {
+    this.isAlive = true;
+    this.graphItem = graphItem;
     this.image = this.appendImage(graphItem);
 }
 XYGraphDetail.prototype = {
@@ -641,7 +712,7 @@ XYGraphDetail.prototype = {
             width:  medium.width,
             height: medium.height
         }, "fast", null, function() {
-            self.appendTip(graphItem);
+            self.tip = self.appendTip(graphItem);
             image.attr({
                 src: medium.url
             });
@@ -653,19 +724,20 @@ XYGraphDetail.prototype = {
         return (this.image.offset().left < 430);
     },
 
-    appendTip: function(graphItem) {
+    appendTip: function(graphItem) { // Detail Tip
         var self = this;
-        var reviewHtml = $.map(graphItem.getReviewComments(),
-                               function(comment) {
-                                   return (['<div style="border-bottom: 1px solid #333; padding:0.5em;">',
-                                            "<b>",
-                                            comment["summary"],
-                                            "</b>",
-                                            "<br/>",
-                                            comment["content"],
-                                            "</div>"
-                                           ]).join("");
-                               }).join("");
+        var reviewHtml = $.map(
+            graphItem.getReviewComments(),
+            function(comment) {
+                return (['<div style="border-bottom: 1px solid #333; padding:0.5em;">',
+                         "<b>",
+                         comment["summary"],
+                         "</b>",
+                         "<br/>",
+                         comment["content"],
+                         "</div>"
+                        ]).join("");
+            }).join("");
         var summaryHtml = ([
             graphItem.getPrice() + "円",
             "星 " + graphItem.getRating()
@@ -722,13 +794,13 @@ XYGraphDetail.prototype = {
                 delay: 0
             },
             hide: {
-                delay: 1300,
+                delay: 1000,
                 fixed: true
             },
             api: {
                 onHide: function() {
                     self.image.css({
-                        "border-color": "#FFFFFF"
+                        "border-color": "#DDDDDD"
                     });
                     var offset = graphItem.image.offset();
                     self.image.animate({
@@ -737,12 +809,49 @@ XYGraphDetail.prototype = {
                         width:  graphItem.image.width(),
                         height: graphItem.image.height()
                     }, "fast", null, function() {
-                        self.image.remove();
+                        self.fadeoutAndRemove();
                     });
                 }
             }
         }).qtip("show");
+
+        tip.qtip("api").elements.tooltip.selectable();
+        tip.qtip("api").elements.tooltip.mousedown(function(event) {
+            event.stopPropagation();
+        });
+
         return tip;
+    },
+
+    fadeoutAndRemove: function() {
+        if (!this.isAlive) return;
+        var self = this;
+        if (this.tip) {
+            this.tip.qtip("destroy");
+        }
+        this.image.css({
+            "border-color": "#DDDDDD"
+        });
+        var offset = this.graphItem.image.offset();
+        this.image.animate({
+            left: offset.left,
+            top:  offset.top,
+            width:  self.graphItem.image.width(),
+            height: self.graphItem.image.height()
+        }, "fast", null, function() {
+            self.remove();
+        });
+    },
+
+    remove: function() {
+        if (!this.isAlive) return;
+        if (this.tip) {
+            this.tip.qtip("destroy");
+        }
+        if (this.image) {
+            this.image.remove();
+        }
+        this.isAlive = false;
     }
 };
 
@@ -869,6 +978,19 @@ jQuery.fn.extend({
                 "user-select": "none" // CSS3
             });
         });
+    },
+
+    selectable: function() {
+        return this.each(function() {
+            $(this).attr({
+                unselectable: "off" // IE
+            }).css({
+                "-moz-user-select": "auto",
+                "-khtml-user-select": "auto",
+                "-webkit-user-select": "auto",
+                "user-select": "auto" // CSS3
+            });
+        });
     }
 });
 
@@ -876,6 +998,14 @@ jQuery.log = function(obj) {
     if (window.console) {
         console.log(obj);
     }
+}
+jQuery.any = function(array, callback) {
+    for (var i=0; i<array.length; i++) {
+        if (callback.call(this, i, array[i])) {
+            return true;
+        }
+    }
+    return false
 }
 
 //
