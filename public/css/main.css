@@ -1,12 +1,27 @@
 body {
     font-family: 'Trebuchet MS', sans-serif;
     margin: 0 0;
-    padding: 0 0 100px 60px;
+    padding: 0 0 100px 0;
 }
 
-h1 {
-    font-size: 160%;
-    margin: 0.5em 0px;
+.header {
+    padding: 25px 50px 20px 50px;
+}
+
+.body {
+    padding: 0px 50px;
+}
+
+/*
+ * Logo
+ */
+h1.top-left-logo {
+    margin: 0 0.8em 0 0;
+    font-size: 180%;
+}
+
+h1.index {
+    font-size: 300%;
 }
 
 h1 a {
@@ -14,28 +29,53 @@ h1 a {
     color: #000;
 }
 
-table {
+table.graph {
     border-spacing: 0;
     border-collapse: collapse;
 }
 
-form.search {
-    margin-bottom: 10px;
+table.graph td {
+    padding: 0;
+}
+
+/**
+ * Search Form
+ */
+
+form.search input,
+form.search select {
+    vertical-align: middle;
+    font-size: 120%;
 }
 
 form.search input.keyword {
     padding: 2px 4px;
     border: 2px solid #CCC;
+    width: 14em;
 }
 
-.large-font {
-    font-size: 120%;
+form.index {
+    line-height: 250%;
 }
 
-.bold {
-    font-weight: bold;
-}
+/*
+ * Util
+ */
 
-.default-cursor {
-    cursor: default;
+.center { text-align: center; }
+.bold { font-weight: bold; }
+.default-cursor { cursor: default; }
+.float-left { float: left; }
+.float-right { float: right; }
+.clearfix:after {
+    content: ".";
+    display: block;
+    clear: both;
+    height: 0;
+    visibility: hidden;
 }
+.clearfix { display: inline-block; }
+/* Hides from IE-mac \*/
+* html .clearfix { height: 1%; }
+.clearfix { display: block; }
+/* End hide from IE-mac */

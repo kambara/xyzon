@@ -1,7 +1,10 @@
 /*
 TODO:
-- デザイン
 - ズーム時どこにいるか
+- 商品キープ（気になるチェック）
+- 複数軸
+- 戻る・進む (URL切り替え？複数グラフがあったときどうするか。あくまで補助的？)
+- デザイン
 */
 
 $(function() {
@@ -80,7 +83,6 @@ function XYGraph(w, h) {
     this.maxSalesRankLog = null;
     this.minSalesRankLog = null;
     this.graphArea = new XYGraphArea("#graph-area", w, h);
-    //var xAxisScale = new XAxisScale("#graph-area", w);
 }
 XYGraph.prototype = {
     addItem: function(itemXmlElem) {
@@ -122,7 +124,7 @@ XYGraph.prototype = {
         }
         if (this.maxSalesRankLog == null
             || salesRank > this.maxSalesRankLog) {
-            this.maxSalesRankLog = salesRank * 1.3;
+            this.maxSalesRankLog = salesRank * 1.2;
             changed = true;
         }
         return changed;
@@ -142,7 +144,11 @@ function XYGraphArea(containerSelector, w, h) {
     this.rangeHistories = [];
     this.graphItems = [];
 
-    this.itemContainer = this.createItemContainer(w, h).appendTo(containerSelector);
+    var graphAndYAxisScaleContainer = $("<div/>").css({
+        //border: "1px solid #0000FF"
+    }).appendTo(containerSelector);
+
+    this.itemContainer = this.createItemContainer(w, h).appendTo(graphAndYAxisScaleContainer);
     this.xAxisScale = new XAxisScale(containerSelector, w);
 
     var offset = $(containerSelector).offset();
@@ -242,12 +248,29 @@ XYGraphArea.prototype = {
         });
     },
 
+    setLocationHash: function(xRange, yRange) {
+        var params = [];
+        $.each({
+            x1: xRange ? xRange.first : null,
+            x2: xRange ? xRange.last  : null,
+            y1: yRange ? yRange.first : null,
+            y2: yRange ? yRange.last  : null
+        }, function(key, value) {
+            if (value) {
+                params.push(key + "=" + value);
+            }
+        });
+        var url = location.href.split("#")[0];
+        location.href = url + "#" + params.join("&");
+    },
+
     zoomIn: function(xRange, yRange) {
         this.rangeHistories.push({
             xAxisRange: this.xCurrentAxisRange,
             yAxisRange: this.yCurrentAxisRange
         });
         this.setCurrentAxisRange(xRange, yRange);
+        //this.setLocationHash(xRange, yRange);
     },
 
     zoomOut: function() {
@@ -256,9 +279,11 @@ XYGraphArea.prototype = {
         if (this.rangeHistories.length == 0) {
             this.setCurrentAxisRange(this.xMaxAxisRange,
                                      this.yMaxAxisRange);
+            //this.setLocationHash(null, null);
         } else {
             this.setCurrentAxisRange(ranges.xAxisRange,
                                      ranges.yAxisRange);
+            //this.setLocationHash(ranges.xAxisRange, ranges.yAxisRange);
         }
     },
 
@@ -275,29 +300,33 @@ XYGraphArea.prototype = {
     calcXValue: function(x) {
         return this.xCurrentAxisRange.first
             + (this.xCurrentAxisRange.getDifference()
-                   * x / this.width);
+               * x / this.width);
     },
 
     calcYValue: function(y) {
         return this.yCurrentAxisRange.first
             + (this.yCurrentAxisRange.getDifference()
-               * (this.height - y) / this.height)
+               * (this.height - y) / this.height);
     },
 
     calcXCoord: function(value) {
         return(
-            this.width
-                * (value - this.xCurrentAxisRange.first)
-                / this.xCurrentAxisRange.getDifference()
+            Math.round(
+                this.width
+                    * (value - this.xCurrentAxisRange.first)
+                    / this.xCurrentAxisRange.getDifference()
+            )
         );
     },
 
     calcYCoord: function(value) {
         return(
-            this.height
-                - (this.height
-                   * (value - this.yCurrentAxisRange.first)
-                   / this.yCurrentAxisRange.getDifference())
+            Math.round(
+                this.height
+                    - (this.height
+                       * (value - this.yCurrentAxisRange.first)
+                       / this.yCurrentAxisRange.getDifference())
+            )
         );
     },
 
@@ -354,7 +383,7 @@ Selector.prototype = {
             top: 0,
             width: 0,
             height: 0,
-            border: "1px solid #6666FF",
+            border: "1px solid #3333FF",
             "background-color": "#CCCCFF",
             filter: "alpha(opacity=" + (opacity*100) + ")", //IE
             "-moz-opacity": opacity, //FF
@@ -525,8 +554,9 @@ XYGraphItem.prototype = {
             height: Math.round(thumb.height * self.getImageScale()),
             //display: "block",
             cursor: "pointer",
-            border: "3px solid #DDDDDD",
-            "background-color": "#FFFFFF",
+            border: "2px solid #FFFFFF",
+            padding: 3,
+            "background-color": "#DDDDDD",
             "z-index": self.getZIndex()
         }).mouseover(function() {
             self.onMouseover();
@@ -544,7 +574,7 @@ XYGraphItem.prototype = {
             "z-index": 2000
         });
         this.image.css({
-            "border-color": "#000000"
+            "background-color": "#FF9933"
         });
     },
 
@@ -554,7 +584,8 @@ XYGraphItem.prototype = {
             "z-index": self.getZIndex()
         });
         this.image.css({
-            "border-color": "#DDDDDD"
+            //"border-color": "#DDDDDD"
+            "background-color": "#DDDDDD"
         });
     },
 
@@ -591,7 +622,9 @@ XYGraphItem.prototype = {
         var self = this;
         var summaryHtml = ([this.getPrice() + "円",
                             "星" + this.getRating()
-                            + "(" + this.getTotalReviews() + "人)"
+                            + "("
+                            + this.getTotalReviews()
+                            + "人)"
                            ]).join("<br />");
         var isRight = this.isTipRight();
         return this.image.qtip({
@@ -630,6 +663,9 @@ XYGraphItem.prototype = {
     },
 
     getZIndex: function() {
+        if (!this.getSalesRankLog()){
+            return 0;
+        }
         return Math.round(
             1000 * this.getImageScale()
                 + 100 * (15 - this.getSalesRankLog())/15
@@ -656,15 +692,20 @@ XYGraphItem.prototype = {
 
     onMouseover: function() {
         if (!this.tipIsActive) return;
-        if (!this.tip) {
-            this.tip = this.createTip();
+        if (this.tip) {
+            this.tip.qtip("destroy");
+            delete this.tip
         }
+        this.tip = this.createTip();
         this.highlight();
     },
 
     onMouseout: function() {
-        var self = this;
         this.offlight();
+        if (this.tip) {
+            this.tip.qtip("destroy");
+            delete this.tip
+        }
     },
 
     onMousedown: function(event) {
@@ -698,7 +739,9 @@ XYGraphDetail.prototype = {
             top:  offset.top,
             width:  graphItem.image.width(),
             height: graphItem.image.height(),
-            border: "3px solid #000000",
+            padding: graphItem.image.css("padding"),
+            "background-color": graphItem.image.css("background-color"),
+            border: graphItem.image.css("border"),
             "z-index": 3000
         }).mousemove(function(event) {
             event.preventDefault();
@@ -754,7 +797,7 @@ XYGraphDetail.prototype = {
         var isRight = this.isTipRight();
         var tip = this.image.qtip({
             content: {
-                title: 
+                title:
                     '<a href="'
                     + graphItem.getDetailPageURL()
                     + '" target="_blank" style="color:#FFFFFF">'
@@ -830,7 +873,7 @@ XYGraphDetail.prototype = {
             this.tip.qtip("destroy");
         }
         this.image.css({
-            "border-color": "#DDDDDD"
+            "background-color": "#DDDDDD"
         });
         var offset = this.graphItem.image.offset();
         this.image.animate({
@@ -863,22 +906,26 @@ function XAxisScale(containerSelector, w) {
     this.height = 34;
     this.texts = [];
     var self = this;
-    var canvas = $("<canvas/>").attr({
-        width:  self.width,
-        height: self.height
-    });
-    var canvasElem = canvas.get(0);
-    if (typeof(G_vmlCanvasManager) != 'undefined') { // IE
-        G_vmlCanvasManager.initElement(canvasElem);
-    }
-    this.ctx = canvasElem.getContext('2d');
+
     this.scaleContainer = $("<div/>").css({
         width:  self.width,
         height: self.height,
         position: "relative"
     });
-    this.scaleContainer.append(canvas);
-    $(containerSelector).append(this.scaleContainer);
+
+    var canvas = $("<canvas/>").attr({
+        width:  self.width,
+        height: self.height
+    }).appendTo(
+        this.scaleContainer.appendTo(
+            $(containerSelector)));
+
+    // Init canvas
+    var canvasElem = canvas.get(0);
+    if (typeof(G_vmlCanvasManager) != 'undefined') { // IE
+        canvasElem = G_vmlCanvasManager.initElement(canvasElem);
+    }
+    this.ctx = canvasElem.getContext('2d');
 }
 XAxisScale.prototype = {
     setRange: function(range) {
@@ -954,6 +1001,9 @@ XAxisScale.prototype = {
         this.scaleContainer.append(span);
     }
 };
+
+function YAxisScale() {
+}
 
 //
 // Extend jQuery
@@ -1076,4 +1126,20 @@ function ImageInfo(item, type) {
         this.width  = 64;
         this.height = 42;
     }
+}
+
+/**
+ * extend function
+ * @param {Object} s superclass
+ * @param {Function} c constructor
+ */
+function extend(s, c)
+{
+    function f(){};
+    f.prototype = s.prototype;
+    c.prototype = new f();
+    c.prototype.__super__ = s.prototype;
+    c.prototype.__super__.constructor = s;
+    c.prototype.constructor = c;
+    return c;
 }

@@ -1899,7 +1899,7 @@
                var api = $.fn.qtip.interfaces[i];
 
                // Update position if resize or scroll adjustments are enabled
-               if(api.status.rendered === true
+               if(api && api.status.rendered === true
                && (api.options.position.type !== 'static'
                || api.options.position.adjust.scroll && event.type === 'scroll'
                || api.options.position.adjust.resize && event.type === 'resize'))
