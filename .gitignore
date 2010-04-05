@@ -1,4 +1,5 @@
 /.gems
+/config-amazon.rb
 /WEB-INF/appengine-generated
 /WEB-INF/lib
 /WEB-INF/appengine-web.xml

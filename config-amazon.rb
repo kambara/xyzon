@@ -1,4 +1,0 @@
-class ConfigAmazon
-  ACCESS_KEY = "AKIAJOM47M6VY4UN4RRQ"
-  SECRET_KEY = "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"
-end

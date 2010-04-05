@@ -81,11 +81,6 @@ module Amazon
   # Search Products
   # 必要な値を取り出す。適当にソート。
   #
-  # TODO:
-  # - max_price, min_price, max_salesrank, min_salesrank
-  # - to_json
-  # - (sort)
-  #
   class Products < Array
     def search(category, keyword)
       response = fetch(category, keyword, 1)

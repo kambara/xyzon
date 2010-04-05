@@ -5,6 +5,7 @@ TODO:
 - 複数軸
 - 戻る・進む (URL切り替え？複数グラフがあったときどうするか。あくまで補助的？)
 - デザイン
+- カテゴリ自動選択
 */
 
 $(function() {
@@ -144,12 +145,20 @@ function XYGraphArea(containerSelector, w, h) {
     this.rangeHistories = [];
     this.graphItems = [];
 
-    var graphAndYAxisScaleContainer = $("<div/>").css({
-        //border: "1px solid #0000FF"
+    var table = $("<table/>").css({
+        "border-spacing": 0,
+        "border-collapse": "collapse"
     }).appendTo(containerSelector);
+    var tr1  = $("<tr/>").appendTo(table);
+    var tr2  = $("<tr/>").appendTo(table);
+    var td11 = this.td().appendTo(tr1);
+    var td12 = this.td().appendTo(tr1);
+    var td21 = this.td().appendTo(tr2);
+    var td22 = this.td().appendTo(tr2);
 
-    this.itemContainer = this.createItemContainer(w, h).appendTo(graphAndYAxisScaleContainer);
-    this.xAxisScale = new XAxisScale(containerSelector, w);
+    this.itemContainer = this.createItemContainer(w, h).appendTo(td11);
+    this.xAxisScale = new XAxisScale(td21, w);
+    this.yAxisScale = new YAxisScale(td12, h);
 
     var offset = $(containerSelector).offset();
     this.selector = new Selector(offset.left,
@@ -159,6 +168,12 @@ function XYGraphArea(containerSelector, w, h) {
     this.selector.hide();
 }
 XYGraphArea.prototype = {
+    td: function() {
+        return $("<td/>").css({
+            padding: 0
+        });
+    },
+
     createItemContainer: function(w, h) {
         var self = this;
         var div = $("<div/>").unselectable().css({
@@ -168,7 +183,8 @@ XYGraphArea.prototype = {
             "background-color": "#FFF",
             position: "relative",
             cursor: "crosshair",
-            overflow: "hidden"
+            overflow: "hidden",
+            float: "left"
         }).mousedown(function(event) {
             self.onMousedown(event);
         });
@@ -352,7 +368,8 @@ XYGraphArea.prototype = {
         this.xCurrentAxisRange = xRange;
         this.yCurrentAxisRange = yRange;
         this.xAxisScale.setRange(xRange);
-        this.adjustGraphItems()
+        this.yAxisScale.setRange(yRange);
+        this.adjustGraphItems();
     }
 };
 
@@ -898,39 +915,88 @@ XYGraphDetail.prototype = {
     }
 };
 
-//
-// X Axis Scale
-//
-function XAxisScale(containerSelector, w) {
+
+var ScaleMode = {
+    HORIZONTAL: 1,
+    VERTICAL:   2
+};
+
+/**
+ * AxisScale
+ * Abstract Class
+ */
+function AxisScale(container, w, h, scaleMode, isLog) {
+    this.markColor = "#CCCCCC";
     this.width = w;
-    this.height = 34;
-    this.texts = [];
-    var self = this;
-
-    this.scaleContainer = $("<div/>").css({
-        width:  self.width,
-        height: self.height,
+    this.height = h;
+    this.scaleMode = scaleMode || ScaleMode.HORIZONTAL;
+    this.isLog = isLog || false;
+    this.textClassName = "_canvas_text_";
+    
+    this.innerContainer = $("<div/>").css({
+        width: w,
+        height: h,
         position: "relative"
-    });
-
-    var canvas = $("<canvas/>").attr({
-        width:  self.width,
-        height: self.height
-    }).appendTo(
-        this.scaleContainer.appendTo(
-            $(containerSelector)));
+    }).appendTo(container);
 
     // Init canvas
-    var canvasElem = canvas.get(0);
-    if (typeof(G_vmlCanvasManager) != 'undefined') { // IE
-        canvasElem = G_vmlCanvasManager.initElement(canvasElem);
-    }
-    this.ctx = canvasElem.getContext('2d');
+    var canvas = $("<canvas/>").attr({
+        width: w,
+        height: h
+    }).appendTo(this.innerContainer);
+
+    this.ctx = this.getContext(canvas.get(0));
 }
-XAxisScale.prototype = {
+AxisScale.prototype = {
+    isHorizontal: function() {
+        return (this.scaleMode == ScaleMode.HORIZONTAL);
+    },
+
+    hv: function(hValue, vValue) {
+        return this.isHorizontal()
+            ? hValue
+            : vValue;
+    },
+
+    getScaleLength: function() {
+        return this.hv(
+            this.width,
+            this.height);
+    },
+
+    getContext: function(canvasElem) {
+        if (typeof(G_vmlCanvasManager) != 'undefined') { // IE
+            canvasElem = G_vmlCanvasManager.initElement(canvasElem);
+        }
+        return canvasElem.getContext('2d');
+    },
+
+    appendText: function(text, pos, offset) {
+        if (pos < 0) return;
+        if (pos > this.getScaleLength()) return;
+
+        var self = this;
+        var span = $("<span/>").text(text).attr({
+            "class": self.textClassName
+        }).css({
+            position: "absolute",
+            left: self.hv(pos,    offset),
+            top:  self.hv(offset, pos),
+            "font-size": 13,
+            color: "#666666"
+        });
+        this.innerContainer.append(span);
+    },
+
+    removeAllTexts: function() {
+        this.innerContainer.find(
+            "span." + this.textClassName
+        ).remove();
+    },
+
     setRange: function(range) {
         this.ctx.clearRect(0, 0, this.width, this.height);
-        this.scaleContainer.find("span").remove();
+        this.removeAllTexts();
         var labeledNumberTable = {};
 
         var num100000Marks = this.drawMarks(range,
@@ -958,20 +1024,24 @@ XAxisScale.prototype = {
     },
 
     drawMarks: function(range, unit,
-                        lineWidth, lineLength,
-                        labelIsShown, labeledNumberTable) {
-        var interval = unit * this.width / range.getDifference();
+                        lineWidth,
+                        lineLength,
+                        labelIsShown,
+                        labeledNumberTable) {
+        var interval = unit * this.getScaleLength() / range.getDifference();
         var rightScaleValue = Math.floor(range.last / unit) * unit;
         var rightOffset = interval * (range.last - rightScaleValue) / unit;
         var count = 0;
         while (true) {
-            var x = this.width - rightOffset - interval * count;
-            if (x < 0) break;
-            this.drawMark(x, lineWidth, lineLength);
+            var pos = this.getScaleLength() - rightOffset - interval * count;
+            if (pos < 0) break;
+            this.drawMark(pos, lineWidth, lineLength);
             if (labelIsShown) {
                 var value = rightScaleValue - unit * count;
                 if (!labeledNumberTable[value]) {
-                    this.drawText(x, lineLength, value.toString());
+                    this.appendText(value.toString(),
+                                    pos,
+                                    lineLength);
                     labeledNumberTable[value] = true;
                 }
             }
@@ -980,30 +1050,81 @@ XAxisScale.prototype = {
         return count;
     },
 
-    drawMark: function(x, lineWidth, lineLength) {
+    drawMark: function(pos, lineWidth, lineLength) {
+        if (this.scaleMode == ScaleMode.HORIZONTAL) {
+            this.drawLine(
+                pos, 0,
+                pos, lineLength,
+                lineWidth,
+                lineLength);
+        } else {
+            this.drawLine(
+                0, pos,
+                lineLength, pos,
+                lineWidth,
+                lineLength);
+        }
+    },
+
+    drawLine: function(x1, y1, x2, y2, lineWidth, lineLength) {
         this.ctx.strokeStyle = "#CCCCCC";
         this.ctx.lineWidth = lineWidth;
         this.ctx.beginPath();
-        this.ctx.moveTo(x, 0);
-        this.ctx.lineTo(x, lineLength);
+        this.ctx.moveTo(x1, y1);
+        this.ctx.lineTo(x2, y2);
         this.ctx.stroke();
-    },
-
-    drawText: function(x, y, text) {
-        var span = $("<span/>").text(text).css({
-            position: "absolute",
-            left: x,
-            top: y,
-            "font-size": 13,
-            color: "#666666"
-        });
-        this.texts.push(span);
-        this.scaleContainer.append(span);
     }
 };
 
-function YAxisScale() {
-}
+//
+// XAxisScale
+//
+var XAxisScale = extend(
+    AxisScale,
+    function(containerSelector, w) {
+        this.base(containerSelector, w, 34);
+    },
+    {
+    }
+);
+
+var YAxisScale = extend(
+    AxisScale,
+    function(container, h) {
+        this.base(container, 100, h, ScaleMode.VERTICAL, true);
+    },
+    {
+        getLogPos: function(value, range) {
+            return(
+                (Math.log(value) - range.last)
+                    * this.getScaleLength() / (range.first - range.last)
+            );
+        },
+
+        setRange: function(range) {
+            this.ctx.clearRect(0, 0, this.width, this.height);
+            this.removeAllTexts();
+            for (var i=0; i<=6; i++) {
+                var value = Math.pow(10, i);
+                var pos = this.getLogPos(value, range);
+                if (pos > this.getScaleLength()) return;
+                this.drawMark(pos, 3, 14);
+                this.appendText(value.toString(), pos-4, 14);
+
+                for (var j=2; j<=9; j++) {
+                    var value2 = value * j;
+                    var pos2 = this.getLogPos(value2, range);
+                    if (pos2 > this.getScaleLength()) return;
+                    this.drawMark(pos2, 1, 8);
+                    if (j <= 4) {
+                        this.appendText(value2.toString(), pos2-4, 8);
+                    }
+                }
+            }
+        }
+    }
+);
+
 
 //
 // Extend jQuery
@@ -1068,6 +1189,10 @@ function Range(first, last) {
 Range.prototype = {
     getDifference: function() {
         return this.last - this.first;
+    },
+
+    toString: function() {
+        return this.first + " " + this.last;
     }
 };
 
@@ -1128,18 +1253,35 @@ function ImageInfo(item, type) {
     }
 }
 
+
 /**
  * extend function
- * @param {Object} s superclass
+ * <http://plusb.jp/blog/?p=102>
+ * @param {Object}   s superclass
  * @param {Function} c constructor
+ * @param {Object}   m methods
+ * @return Constructor
  */
-function extend(s, c)
-{
+function extend(s, c, m) {
     function f(){};
     f.prototype = s.prototype;
     c.prototype = new f();
-    c.prototype.__super__ = s.prototype;
-    c.prototype.__super__.constructor = s;
+    c.prototype.__super = s.prototype;
+    c.prototype.__super.constructor = s;
     c.prototype.constructor = c;
+    c.prototype.base = function() {
+      var ob = this.base;
+      this.base = s.prototype.base;
+      s.apply(this, arguments);
+      if( this.constructor == c) {
+          delete this.base;
+      } else {
+          this.base = ob;
+      }
+    }
+    //属性を拡張
+    for (var n in m) {
+        c.prototype[n] = m[n];
+    }
     return c;
 }

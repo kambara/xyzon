@@ -13,7 +13,21 @@ end
 
 get '/search' do
   @keyword = params['keyword']
+  if params['category'] == 'Auto'
+    @category = select_category(@keyword)
+  end
   haml :search
+end
+
+def select_category(keyword)
+  group = "SalesRank,ItemAttributes"
+  body = Amazon::Request.new.fetch({ :Operation     => "ItemSearch",
+                                     :Keywords      => keyword,
+                                     :ItemPage      => 1,
+                                     :ResponseGroup => group,
+                                     :Sort          => "salesrank" })
+  response = XMLObject.new(body)
+  ## TODO: count category
 end
 
 #

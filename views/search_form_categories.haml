@@ -1,4 +1,9 @@
 %select(name="category")
+  %option{:value => 'Auto',
+          :selected => params[:category] == 'Auto'}
+    カテゴリー
+  %option ----------
+
   %option{:value => 'Books',
           :selected => params[:category] == 'Books'}
     本・漫画・雑誌
