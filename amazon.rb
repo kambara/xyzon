@@ -1,10 +1,9 @@
-require 'appengine-apis/urlfetch'
-require 'hmac/sha2'
-require 'base64'
-require 'config-amazon'
-#require 'xml-object' ## http://xml-object.rubyforge.org/
-require 'rexml/document'
 require 'pp'
+require 'base64'
+require 'rexml/document'
+require 'appengine-apis/urlfetch'
+require 'hmac/sha2' ## from ruby-openid
+require 'config-amazon'
 
 module Amazon
   class ItemSearch
@@ -30,6 +29,11 @@ module Amazon
                                        :ResponseGroup => "ItemAttributes"
                                      }).response
       unless response.is_valid
+        warn "Invalid"
+        return []
+      end
+
+      if response.errors.length > 0
         pp response.errors
         return []
       end
@@ -45,15 +49,12 @@ module Amazon
           end
         end
       }
-      if categories.length > 0
-        categories.sort {|a,b|
-          b[1] <=> a[1]
-        }.map {|pair|
-          ProductGroup.search_index_name( pair[0] )
-        }
-      else
-        []
-      end
+      return [] if categories.length == 0
+      categories.sort {|a,b|
+        b[1] <=> a[1]
+      }.map {|pair|
+        ProductGroup.search_index_name( pair[0] )
+      }
     end
   end
 
@@ -151,7 +152,9 @@ module Amazon
     end
 
     def is_valid
-      return( xml_doc.root.elements['//IsValid'].text == 'True' )
+      return( xml_doc.root.elements['//Request/IsValid'].text == 'True' )
+    rescue
+      false
     end
 
     def errors

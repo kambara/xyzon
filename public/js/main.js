@@ -1,5 +1,7 @@
 /*
 TODO:
+- v0.1.0
+  - XMLの同時ロード
 - ズーム時どこにいるか
 - 商品キープ（気になるチェック）
 - 複数軸
@@ -12,51 +14,81 @@ $(function() {
     $(".unselectable").unselectable();
     var xyGraph = new XYGraph(650, 500);
     new AmazonSearch(xyGraph);
+    initCategorySelection();
 });
 
+function initCategorySelection() {
+    $("form.search").each(function(i, formElem) {
+        $(formElem).find("select[name='category']").change(
+            function(event) {
+                $(formElem).submit();
+            });
+    });
+}
+
 function AmazonSearch(xyGraph) {
-    this.page = 1;
+    this.maxPages = 10;
+    this.loadedCount = 0;
     this.xyGraph = xyGraph;
-    this.fetchXML();
+    this.fetchAllPages(10);
 }
 AmazonSearch.prototype = {
-    fetchXML: function() {
+    fetchAllPages: function() {
+        for (var page=1; page <= this.maxPages; page++) {
+            this.fetchAndParseXML(page);
+        }
+    },
+    
+    fetchAndParseXML: function(page) {
         var self = this;
         $.ajax({
             type: "GET",
-            url: self.makeSearchURL(),
+            url: self.makeSearchURL(page),
             dataType: "xml",
             success: function(xml) {
-                self.parseXML(xml)
+                self.parseXML(xml, page)
+            },
+            complete: function() {
+                self.onComplete();
             }
         });
     },
 
-    parseXML: function(xml) {
+    onComplete: function() {
+        this.loadedCount += 1;
+        if (this.loadedCount >= this.maxPages) {
+            $.log("Loaded");
+        }
+    },
+
+    parseXML: function(xml, page) {
         var items = $(xml).find("Items");
         if (items.find("Request > IsValid").text() == "False") {
-            $.log("Invalid");
+            $.log("Invalid: page" + page);
             // TODO: Alert
+            return;
+        }
+        var errors = items.find("Request > Errors");
+        if (errors.length > 0) {
+            errors.find("Error > Message").each(
+                function(i, elem) {
+                    $.log("page"+ page + ": " + $(elem).text());
+                });
             return;
         }
         var self = this;
         items.find("Item").each(function() {
             self.xyGraph.addItem(this);
         });
-        var totalPages = items.find("TotalPages").integer();
-        this.page++;
-        if (this.page <= totalPages && this.page <= 5) {
-            this.fetchXML();
-        }
     },
 
-    makeSearchURL: function() {
+    makeSearchURL: function(page) {
         var params = this.getLocationParams();
         return ([
             "/ajax/search",
             params["category"],
             params["keyword"],
-            this.page.toString(),
+            page.toString(),
             "xml"
         ]).join("/");
     },
@@ -1170,6 +1202,7 @@ jQuery.log = function(obj) {
         console.log(obj);
     }
 }
+
 jQuery.any = function(array, callback) {
     for (var i=0; i<array.length; i++) {
         if (callback.call(this, i, array[i])) {
@@ -1177,6 +1210,11 @@ jQuery.any = function(array, callback) {
         }
     }
     return false
+}
+
+jQuery.min = function(a, b) {
+    if (a < b) return a;
+    return b;
 }
 
 //
