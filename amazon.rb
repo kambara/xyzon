@@ -1,152 +1,183 @@
 require 'appengine-apis/urlfetch'
 require 'hmac/sha2'
 require 'base64'
-require 'rexml/document'
 require 'config-amazon'
-require 'xml-object' ## http://xml-object.rubyforge.org/
+#require 'xml-object' ## http://xml-object.rubyforge.org/
+require 'rexml/document'
 require 'pp'
-require 'json'
 
 module Amazon
-  class Image
-    def initialize(url, width, height)
-      @url = url
-      @width = width
-      @height = height
+  class ItemSearch
+    def self.search(category, keyword, page)
+      group = "SalesRank,Offers,OfferSummary,ItemAttributes,Images,Reviews"
+      sort = if (category == "All")
+             then nil
+             else "salesrank" end
+      Amazon::Request.new({ :Operation     => "ItemSearch",
+                            :SearchIndex   => category,
+                            :Keywords      => keyword,
+                            :ItemPage      => page,
+                            :ResponseGroup => group,
+                            :Sort          => sort
+                          }).response
     end
 
-    def to_hash
-      {
-        :url    => @url,
-        :width  => @width,
-        :height => @height
-      }
-    end
-  end
+    def self.recommend_categories(keyword)
+      response = Amazon::Request.new({ :Operation     => "ItemSearch",
+                                       :SearchIndex   => "All",
+                                       :Keywords      => keyword,
+                                       :ItemPage      => 1,
+                                       :ResponseGroup => "ItemAttributes"
+                                     }).response
+      unless response.is_valid
+        pp response.errors
+        return []
+      end
 
-  class Product
-    def initialize(item)
-      @item = item
-    end
-
-    def to_hash
-      {
-        :title        => title,
-        :price        => price,
-        :sales_rank   => sales_rank,
-        :small_image  => small_image.to_hash,
-        :medium_image => medium_image.to_hash,
-        :large_image  => large_image.to_hash
-      }
-    end
-
-    def title
-      @item.ItemAttributes.Title
-    end
-
-    def detail_page_url
-      @item.DetailPageURL
-    end
-
-    def small_image
-      Image.new(@item.SmallImage.URL,
-                @item.SmallImage.Height.to_i,
-                @item.SmallImage.Width.to_i)
-    rescue
-      nil
-    end
-
-    def medium_image
-      Image.new(@item.MediumImage.URL,
-                @item.MediumImage.Height.to_i,
-                @item.MediumImage.Width.to_i)
-    end
-
-    def large_image
-      Image.new(@item.LargeImage.URL,
-                @item.LargeImage.Height.to_i,
-                @item.LargeImage.Width.to_i)
-    end
-
-    def price
-      @item.ItemAttributes.ListPrice.Amount rescue nil
-    end
-
-    def sales_rank
-      @item.SalesRank.to_i rescue nil
-    end
-  end
-
-  #
-  # Search Products
-  # 必要な値を取り出す。適当にソート。
-  #
-  class Products < Array
-    def search(category, keyword)
-      response = fetch(category, keyword, 1)
-      add_items(response.Items)
-
-      total_pages = response.Items.TotalPages.to_i
-      if total_pages > 1 then
-        if total_pages > 10
-          total_pages = 10
+      categories = {}
+      response.xml_doc.root.elements.each('//Items/Item') {|item|
+        if group = item.elements['./ItemAttributes/ProductGroup']
+          group_name = group.text
+          if categories[group_name]
+            categories[group_name] += 1
+          else
+            categories[group_name] = 1
+          end
         end
-        Range.new(2, total_pages).each {|page|
-          puts "== page: #{page}"
-          response = fetch(category, keyword, page)
-          add_items(response.Items)
+      }
+      if categories.length > 0
+        categories.sort {|a,b|
+          b[1] <=> a[1]
+        }.map {|pair|
+          ProductGroup.search_index_name( pair[0] )
         }
+      else
+        []
       end
     end
+  end
 
-    def to_json
-      JSON.generate(self.to_a)
+  class ProductGroup
+    ## http://developer.amazonwebservices.com/connect/message.jspa?messageID=37593
+
+    TABLE = {
+      "Apparel"          => "Apparel",
+      "Baby"             => "Baby",
+      "Beauty"           => "Beauty",
+      "Book"             => "Books",
+      "DVD"              => "DVD",
+      "Electronics"      => "Electronics",
+      "Home Improvement" => "Tools",
+      "Gourmet"          => "GourmetFood",
+      "Watch"            => "Jewelry",
+      "Kitchen"          => "Kitchen",
+      "Lawn & Patio"     => "OutdoorLiving",
+      "Magazine"         => "Magazines",
+      "Magazines"        => "Magazines",
+      "Music"            => "Music",
+      "Musical Instruments" => "MusicalInstruments",
+      "Personal Computer"   => "PCHardware",
+      "Software"         => "Software",
+      "Toy"              => "Toys",
+      "Video"            => "VHS",
+      "Video Games"      => "VideoGames",
+      "Sporting Goods"   => "SportingGoods",
+      "Sports"           => "SportingGoods",
+      "Photography"      => "Photo",
+      "Office Product"   => "OfficeProducts",
+      "Furniture"        => "OfficeProducts",
+      "CE"               => "Electronics",
+      "Health and Personal Care" => "HealthPersonalCare",
+      "Health and Beauty"        => "HealthPersonalCare",
+      "Wireless"         => "Wireless",
+      "Restaurant Menu"  => "Restaurants",
+      "Baby Product"     => "Baby"
+    }
+
+    def self.search_index_name(group_name)
+      TABLE[group_name] || nil
+    end
+  end
+
+  class SearchIndex
+    JP_TABLE = {
+      "All"        => 'すべてのカテゴリー',
+      "Apparel"    => 'アパレル',
+      "Automotive" => '自動車',
+      "Baby"       => 'ベビー',
+      "Beauty"     => 'ビューティー',
+      "Blended"    => '複合',
+      "Books"      => '本・漫画・雑誌',
+      "Classical"  => 'クラシック',
+      "DVD"        => 'DVD',
+      "Electronics" => 'エレクトロニクス',
+      "ForeignBooks" => '洋書',
+      "Grocery"    => '食品＆飲料',
+      "HealthPersonalCare" => 'ヘルスケア',
+      "Hobbies"    => 'ホビー',
+      "HomeImprovement" => 'DIY',
+      "Jewelry"    => 'ジュエリー',
+      "Kitchen"    => 'キッチン',
+      "Music"      => 'ミュージック',
+      "MusicTracks" => '曲名',
+      "OfficeProducts" => 'オフィス用品',
+      "Shoes"      => 'シューズ',
+      "Software"   => 'ソフトウェア',
+      "SportingGoods" => 'スポーツ用品',
+      "Toys"       => 'おもちゃ',
+      "VHS"        => 'VHS',
+      "Video"      => 'ビデオ',
+      "VideoGames" => 'ゲーム',
+      "Watches"    => '時計'
+    }
+
+    def self.jp(name)
+      JP_TABLE[name] || nil
+    end
+  end
+
+  class Response
+    attr_reader :body
+
+    def initialize(body)
+      @body = body
     end
 
-    def to_pretty
-      JSON.pretty_generate(self.to_a)
-    end
-
-    def to_a
-      self.map {|product|
-        if product then
-          product.to_hash
-        end
-      }
-    end
-
-    def add_items(items)
-      items.Items.each {|item|
-        push(Product.new(item))
-      }
-    end
-
-    #
-    # @return [XMLObject]
-    #
-    def fetch(category, keyword, page)
-      body = Request.new.fetch({ :Operation => "ItemSearch",
-                                 :SearchIndex => category,
-                                 :Keywords => keyword,
-                                 :ItemPage => page,
-                                 :ResponseGroup => "Small,SalesRank,ItemAttributes,Images",
-                                 :Sort => "salesrank" })
-      response = XMLObject.new(body)
-      if err = response.Error rescue nil then
-        warn err.Message
-        raise(err.Message)
+    def xml_doc
+      unless @doc
+        @doc = REXML::Document.new @body
       end
-      response
+      @doc
+    end
+
+    def is_valid
+      return( xml_doc.root.elements['//IsValid'].text == 'True' )
+    end
+
+    def errors
+      ary = []
+      xml_doc.root.elements.each('//Error') {|err|
+        ary.push err.elements['./Message'].text
+      }
+      ary
     end
   end
 
   ##
   ## Make URL for request, and Fetch
   ##
-
   class Request
-    def fetch(params)
-      url = make_url(params)
+    def initialize(params)
+      @params = params
+    end
+
+    def response
+      body = fetch
+      Amazon::Response.new(body)
+    end
+
+    def fetch
+      url = make_url(@params)
       AppEngine::URLFetch.fetch(url).body
     end
 
@@ -190,6 +221,62 @@ module Amazon
       return encoded
     end
   end
+
+
+  #
+  # Search Products
+  # 必要な値を取り出す。適当にソート。
+  #
+  # class Products < Array
+  #   def search(category, keyword)
+  #     response = fetch(category, keyword, 1)
+  #     add_items(response.Items)
+
+  #     total_pages = response.Items.TotalPages.to_i
+  #     if total_pages > 1 then
+  #       if total_pages > 10
+  #         total_pages = 10
+  #       end
+  #       Range.new(2, total_pages).each {|page|
+  #         puts "== page: #{page}"
+  #         response = fetch(category, keyword, page)
+  #         add_items(response.Items)
+  #       }
+  #     end
+  #   end
+
+  #   def to_a
+  #     self.map {|product|
+  #       if product then
+  #         product.to_hash
+  #       end
+  #     }
+  #   end
+
+  #   def add_items(items)
+  #     items.Items.each {|item|
+  #       push(Product.new(item))
+  #     }
+  #   end
+
+  #   #
+  #   # @return [XMLObject]
+  #   #
+  #   def fetch(category, keyword, page)
+  #     body = Request.new.fetch({ :Operation => "ItemSearch",
+  #                                :SearchIndex => category,
+  #                                :Keywords => keyword,
+  #                                :ItemPage => page,
+  #                                :ResponseGroup => "Small,SalesRank,ItemAttributes,Images",
+  #                                :Sort => "salesrank" })
+  #     response = XMLObject.new(body)
+  #     if err = response.Error rescue nil then
+  #       warn err.Message
+  #       raise(err.Message)
+  #     end
+  #     response
+  #   end
+  # end
 end
 
 ## SearchIndex-ItemSearch Parameter Combination JP

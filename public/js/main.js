@@ -53,7 +53,7 @@ AmazonSearch.prototype = {
     makeSearchURL: function() {
         var params = this.getLocationParams();
         return ([
-            "/search",
+            "/ajax/search",
             params["category"],
             params["keyword"],
             this.page.toString(),

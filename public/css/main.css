@@ -5,7 +5,7 @@ body {
 }
 
 .header {
-    padding: 25px 50px 20px 50px;
+    padding: 20px 50px 0px 50px;
 }
 
 .body {
@@ -17,7 +17,7 @@ body {
  */
 h1.top-left-logo {
     margin: 0 0.8em 0 0;
-    font-size: 180%;
+    font-size: 200%;
 }
 
 h1.index {
@@ -42,10 +42,17 @@ table.graph td {
  * Search Form
  */
 
-form.search input,
-form.search select {
+form.index {
+    line-height: 200%;
+}
+
+form.search input {
     vertical-align: middle;
     font-size: 120%;
+}
+
+form.search select {
+    font-size: 100%;
 }
 
 form.search input.keyword {
@@ -54,8 +61,30 @@ form.search input.keyword {
     width: 14em;
 }
 
-form.index {
-    line-height: 250%;
+form.top {
+    line-height: 1.4em;
+}
+
+
+select option.even {
+    background-color: #EEEEEE;
+}
+select option.odd {
+    background-color: #CDCDCD;
+}
+
+a.recommend {
+    font-size: 90%;
+    margin-left: 0.4em;
+}
+
+form div.keyword-box {
+    background-color: #EDEDED;
+    padding: 6px 8px;
+}
+
+form div.categories-box {
+    margin: 6px;
 }
 
 /*

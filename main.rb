@@ -13,55 +13,56 @@ end
 
 get '/search' do
   @keyword = params['keyword']
-  if params['category'] == 'Auto'
-    @category = select_category(@keyword)
+  @recommend_categories =
+    Amazon::ItemSearch.recommend_categories(@keyword)
+
+  category = params['category']
+  unless category == 'All'
+    @recommend_categories.delete category
   end
   haml :search
 end
 
-def select_category(keyword)
-  group = "SalesRank,ItemAttributes"
-  body = Amazon::Request.new.fetch({ :Operation     => "ItemSearch",
-                                     :Keywords      => keyword,
-                                     :ItemPage      => 1,
-                                     :ResponseGroup => group,
-                                     :Sort          => "salesrank" })
-  response = XMLObject.new(body)
-  ## TODO: count category
+get '/test' do
+  categories = Amazon::ItemSearch.recommend_categories("ruby ")
+  categories.join(" ")
 end
 
 #
 # Search API
 # format: xml/yaml/json
+# /xml/search/category/keyword/1
 #
-get '/search/:category/:keyword/:page/:format' do
-  keyword = params[:keyword] + " "
-  group = "SalesRank,Offers,OfferSummary,ItemAttributes,Images,Reviews"
-  body = Amazon::Request.new.fetch({ :Operation     => "ItemSearch",
-                                     :SearchIndex   => params[:category],
-                                     :Keywords      => keyword,
-                                     :ItemPage      => params[:page],
-                                     :ResponseGroup => group,
-                                     :Sort          => "salesrank" })
+get '/ajax/search/:category/:keyword/:page/:format' do
+  body = Amazon::ItemSearch.search(params[:category],
+                                   params[:keyword] + " ",
+                                   params[:page]
+                                   ).body
   case params[:format]
   when "xml"
-    content_type "text/xml"
-    body
+    output_xml body
   when "yaml"
-    content_type "text"
-    Hash.from_xml(body).to_yaml
+    output_yaml Hash.from_xml(body).to_yaml
   when "json"
-    content_type "application/json"
-    Hash.from_xml(body).to_json
+    outpus_json Hash.from_xml(body).to_json
   end
 end
 
-get '/search/:category/:keyword' do
-  content_type :text
-  products = Amazon::Products.new
-  products.search(params[:category], params[:keyword])
-  products.to_pretty
+def output_xml(body)
+  content_type "text/xml"
+  body
+end
+
+def output_yaml(body)
+  content_type "text"
+  body
+end
+
+def output_json(body)
+  content_type "application/json"
+  body
 end
 
 ## Product Advertising API Developer Guide (API Version 2009-11-01)
 ## - http://docs.amazonwebservices.com/AWSECommerceService/2009-11-01/DG/
+## - 

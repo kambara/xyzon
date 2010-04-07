@@ -1,7 +1,11 @@
 .header.clearfix
-  %h1.top-left-logo.float-left
-    %a(href='/') XYzon
-  = haml :search_form, :layout => false
+  %table
+    %tr
+      %td
+        %h1.top-left-logo
+          %a(href='/') XYzon
+      %td
+        = haml :search_form, :layout => false
 
 .body
   %table.graph
