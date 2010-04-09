@@ -2,6 +2,10 @@
 TODO:
 - v0.1.0
   - XMLの同時ロード
+- v0.1.1 Tasks
+  - Y軸を逆転 原点を上にする
+  - log軸指定をXYGraphAreaでやる。XYGraphはlogを意識しない。
+  - 下と右のマージン
 - ズーム時どこにいるか
 - 商品キープ（気になるチェック）
 - 複数軸
@@ -65,7 +69,6 @@ AmazonSearch.prototype = {
         var items = $(xml).find("Items");
         if (items.find("Request > IsValid").text() == "False") {
             $.log("Invalid: page" + page);
-            // TODO: Alert
             return;
         }
         var errors = items.find("Request > Errors");
@@ -113,9 +116,11 @@ AmazonSearch.prototype = {
 function XYGraph(w, h) {
     this.maxPrice = null;
     this.minPrice = null;
-    this.maxSalesRankLog = null;
-    this.minSalesRankLog = null;
-    this.graphArea = new XYGraphArea("#graph-area", w, h);
+    this.maxSalesRank = null;
+    this.minSalesRank = null;
+    this.graphArea = new XYGraphArea("#graph-area",
+                                     w, h,
+                                     false, true);
 }
 XYGraph.prototype = {
     addItem: function(itemXmlElem) {
@@ -123,11 +128,11 @@ XYGraph.prototype = {
         if (!graphItem.getSalesRank()) return;
         if (!graphItem.getPrice()) return;
         var priceChanged = this.updateMinMaxPrice(graphItem.getPrice());
-        var salesRankChanged = this.updateMinMaxSalesRankLog(graphItem.getSalesRankLog());
+        var salesRankChanged = this.updateMinMaxSalesRank(graphItem.getSalesRank());
         if (priceChanged || salesRankChanged) {
             this.graphArea.setMaxAxisRange(
                 new Range(this.minPrice, this.maxPrice),
-                new Range(this.maxSalesRankLog, this.minSalesRankLog)
+                new Range(this.minSalesRank, this.maxSalesRank)
             );
         }
         this.graphArea.appendItem(graphItem);
@@ -137,27 +142,27 @@ XYGraph.prototype = {
         var changed = false;
         if (this.minPrice == null
             || price < this.minPrice) {
-            this.minPrice = price * 0.9;
+            this.minPrice = price;
             changed = true;
         }
         if (this.maxPrice == null
             || price > this.maxPrice) {
-            this.maxPrice = price * 1.1;
+            this.maxPrice = price;
             changed = true;
         }
         return changed;
     },
 
-    updateMinMaxSalesRankLog: function(salesRank) {
+    updateMinMaxSalesRank: function(salesRank) {
         var changed = false;
-        if (this.minSalesRankLog == null
-            || salesRank < this.minSalesRankLog) {
-            this.minSalesRankLog = salesRank;
+        if (this.minSalesRank == null
+            || salesRank < this.minSalesRank) {
+            this.minSalesRank = salesRank;
             changed = true;
         }
-        if (this.maxSalesRankLog == null
-            || salesRank > this.maxSalesRankLog) {
-            this.maxSalesRankLog = salesRank * 1.2;
+        if (this.maxSalesRank == null
+            || salesRank > this.maxSalesRank) {
+            this.maxSalesRank = salesRank;
             changed = true;
         }
         return changed;
@@ -167,13 +172,17 @@ XYGraph.prototype = {
 //
 // XYGraphArea
 //
-function XYGraphArea(containerSelector, w, h) {
+function XYGraphArea(containerSelector, w, h, xIsLog, yIsLog) {
     this.width = w;
     this.height = h;
+    this.paddingRight = 100;
+    this.paddingBottom = 120;
     this.xMaxAxisRange = new Range(0, 0);
     this.yMaxAxisRange = new Range(0, 0);
     this.xCurrentAxisRange = new Range(0, 0);
     this.yCurrentAxisRange = new Range(0, 0);
+    this.xAxisIsLogScale = xIsLog || false;
+    this.yAxisIsLogScale = yIsLog || false;
     this.rangeHistories = [];
     this.graphItems = [];
 
@@ -189,8 +198,12 @@ function XYGraphArea(containerSelector, w, h) {
     var td22 = this.td().appendTo(tr2);
 
     this.itemContainer = this.createItemContainer(w, h).appendTo(td11);
-    this.xAxisScale = new XAxisScale(td21, w);
-    this.yAxisScale = new YAxisScale(td12, h);
+    this.xAxisScale = this.xAxisIsLogScale
+        ? new LogAxisScale(td21, w, 34, ScaleMode.HORIZONTAL)
+        : new AxisScale(td21, w, 34, ScaleMode.HORIZONTAL);
+    this.yAxisScale = this.yAxisIsLogScale
+        ? new LogAxisScale(td12, 100, h, ScaleMode.VERTICAL)
+        : new AxisScale(td12, 100, h, ScaleMode.VERTICAL);
 
     var offset = $(containerSelector).offset();
     this.selector = new Selector(offset.left,
@@ -216,7 +229,7 @@ XYGraphArea.prototype = {
             position: "relative",
             cursor: "crosshair",
             overflow: "hidden",
-            float: "left"
+            "float": "left"
         }).mousedown(function(event) {
             self.onMousedown(event);
         });
@@ -283,13 +296,10 @@ XYGraphArea.prototype = {
             this.zoomIn(
                 new Range(
                     this.calcXValue(rect.getLeft()),
-                    this.calcXValue(rect.getRight())
-                ),
+                    this.calcXValue(rect.getRight())),
                 new Range(
-                    this.calcYValue(rect.getBottom()),
-                    this.calcYValue(rect.getTop())
-                )
-            );
+                    this.calcYValue(rect.getTop()),
+                    this.calcYValue(rect.getBottom())));
         }
         $.each(this.graphItems, function(i, item) {
             item.activateTip();
@@ -340,42 +350,73 @@ XYGraphArea.prototype = {
         $.each(this.graphItems, function(i, item) {
             item.animateMoveTo(
                 self.calcXCoord(item.getPrice()),
-                self.calcYCoord(item.getSalesRankLog())
+                self.calcYCoord(item.getSalesRank())
             );
         });
     },
 
     calcXValue: function(x) {
-        return this.xCurrentAxisRange.first
-            + (this.xCurrentAxisRange.getDifference()
-               * x / this.width);
+        if (this.xAxisIsLogScale) {
+            return(
+                Math.exp(
+                    this.xCurrentAxisRange.getLogFirst()
+                        + (this.xCurrentAxisRange.getLogDifference()
+                           * x / this.width)));
+        } else {
+            return(
+                this.xCurrentAxisRange.first
+                    + (this.xCurrentAxisRange.getDifference()
+                       * x / this.width));
+        }
     },
 
     calcYValue: function(y) {
-        return this.yCurrentAxisRange.first
-            + (this.yCurrentAxisRange.getDifference()
-               * (this.height - y) / this.height);
+        if (this.yAxisIsLogScale) {
+            return(
+                Math.exp(
+                    this.yCurrentAxisRange.getLogFirst()
+                        + (this.yCurrentAxisRange.getLogDifference()
+                           * y / this.height)));
+        } else {
+            return(
+                this.yCurrentAxisRange.first
+                    + (this.yCurrentAxisRange.getDifference()
+                       * y / this.height));
+        }
     },
 
     calcXCoord: function(value) {
-        return(
-            Math.round(
-                this.width
-                    * (value - this.xCurrentAxisRange.first)
-                    / this.xCurrentAxisRange.getDifference()
-            )
-        );
+        if (this.xAxisIsLogScale) {
+            return(
+                Math.round(
+                    this.width
+                        * (Math.log(value)
+                           - this.xCurrentAxisRange.getLogFirst())
+                        / this.xCurrentAxisRange.getLogDifference()));
+        } else {
+            return(
+                Math.round(
+                    this.width
+                        * (value - this.xCurrentAxisRange.first)
+                        / this.xCurrentAxisRange.getDifference()));
+        }
     },
 
     calcYCoord: function(value) {
-        return(
-            Math.round(
-                this.height
-                    - (this.height
-                       * (value - this.yCurrentAxisRange.first)
-                       / this.yCurrentAxisRange.getDifference())
-            )
-        );
+        if (this.yAxisIsLogScale) {
+            return(
+                Math.round(
+                    this.height
+                        * (Math.log(value)
+                           - this.yCurrentAxisRange.getLogFirst())
+                        / this.yCurrentAxisRange.getLogDifference()));
+        } else {
+            return(
+                Math.round(
+                    this.height
+                        * (value - this.yCurrentAxisRange.first)
+                        / this.yCurrentAxisRange.getDifference()));
+        }
     },
 
     appendItem: function(graphItem) {
@@ -384,11 +425,23 @@ XYGraphArea.prototype = {
         graphItem.appendTo(this.itemContainer);
         graphItem.moveTo(
             this.calcXCoord(graphItem.getPrice()),
-            this.calcYCoord(graphItem.getSalesRankLog())
+            this.calcYCoord(graphItem.getSalesRank())
         );
     },
 
     setMaxAxisRange: function(xRange, yRange) {
+        // マージンを足す
+        var extraRight = (this.paddingRight
+                          * xRange.getDifference()
+                          / this.width);
+        xRange.last += extraRight;
+
+        yRange.last = Math.exp(
+            yRange.getLogLast()
+                + (this.paddingBottom
+                   * yRange.getLogDifference()
+                   / this.height));
+
         this.xMaxAxisRange = xRange;
         this.yMaxAxisRange = yRange;
         if (this.rangeHistories.length == 0) {
@@ -567,12 +620,14 @@ XYGraphItem.prototype = {
     getSalesRank: function() {
         return this.item.find("SalesRank").integer();
     },
-    getSalesRankLog: function() {
+    
+    getSalesRankLog: function() { // Obsolete
         if (!this._salesRankLog) {
             this._salesRankLog = Math.log(this.getSalesRank());
         }
         return this._salesRankLog;
     },
+    
     getImageScale: function() {
         return (this.getTotalReviews() >= 2)
             ? this.getRating() / 5
@@ -733,6 +788,7 @@ XYGraphItem.prototype = {
     },
 
     animateMoveTo: function(x, y) {
+        this.image.stop();
         this.image.animate({
             left: x,
             top: y
@@ -957,12 +1013,11 @@ var ScaleMode = {
  * AxisScale
  * Abstract Class
  */
-function AxisScale(container, w, h, scaleMode, isLog) {
+function AxisScale(container, w, h, scaleMode) {
     this.markColor = "#CCCCCC";
     this.width = w;
     this.height = h;
     this.scaleMode = scaleMode || ScaleMode.HORIZONTAL;
-    this.isLog = isLog || false;
     this.textClassName = "_canvas_text_";
     
     this.innerContainer = $("<div/>").css({
@@ -1108,49 +1163,46 @@ AxisScale.prototype = {
     }
 };
 
-//
-// XAxisScale
-//
-var XAxisScale = extend(
+var LogAxisScale = extend(
     AxisScale,
-    function(containerSelector, w) {
-        this.base(containerSelector, w, 34);
-    },
-    {
-    }
-);
-
-var YAxisScale = extend(
-    AxisScale,
-    function(container, h) {
-        this.base(container, 100, h, ScaleMode.VERTICAL, true);
+    function(container, w, h, scaleMode) {
+        this.base(container, 100, h, scaleMode);
     },
     {
         getLogPos: function(value, range) {
             return(
-                (Math.log(value) - range.last)
-                    * this.getScaleLength() / (range.first - range.last)
-            );
+                (Math.log(value) - range.getLogFirst())
+                    * this.getScaleLength()
+                    / range.getLogDifference());
         },
 
         setRange: function(range) {
             this.ctx.clearRect(0, 0, this.width, this.height);
             this.removeAllTexts();
+
+            var prevPos = 0;
             for (var i=0; i<=6; i++) {
                 var value = Math.pow(10, i);
                 var pos = this.getLogPos(value, range);
                 if (pos > this.getScaleLength()) return;
                 this.drawMark(pos, 3, 14);
-                this.appendText(value.toString(), pos-4, 14);
+                this.appendText(value.toString() + " 位",
+                                pos - 10,
+                                14 + 3);
+                prevPos = pos;
 
                 for (var j=2; j<=9; j++) {
                     var value2 = value * j;
                     var pos2 = this.getLogPos(value2, range);
                     if (pos2 > this.getScaleLength()) return;
+                    if (pos2 - prevPos < 5) break;
                     this.drawMark(pos2, 1, 8);
-                    if (j <= 4) {
-                        this.appendText(value2.toString(), pos2-4, 8);
+                    if (pos2 - prevPos > 15) {
+                        this.appendText(value2.toString(),
+                                        pos2 - 10,
+                                        8 + 3);
                     }
+                    prevPos = pos2;
                 }
             }
         }
@@ -1227,6 +1279,18 @@ function Range(first, last) {
 Range.prototype = {
     getDifference: function() {
         return this.last - this.first;
+    },
+
+    getLogFirst: function() {
+        return Math.log(this.first);
+    },
+
+    getLogLast: function() {
+        return Math.log(this.last);
+    },
+
+    getLogDifference: function() {
+        return this.getLogLast() - this.getLogFirst();
     },
 
     toString: function() {
