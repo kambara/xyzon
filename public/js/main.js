@@ -1,7 +1,5 @@
 /*
 TODO:
-- v0.1.0
-  - XMLの同時ロード
 - v0.1.1 Tasks
   - Y軸を逆転 原点を上にする
   - log軸指定をXYGraphAreaでやる。XYGraphはlogを意識しない。
@@ -16,7 +14,7 @@ TODO:
 
 $(function() {
     $(".unselectable").unselectable();
-    var xyGraph = new XYGraph(650, 500);
+    var xyGraph = new XYGraph(900, 500);
     new AmazonSearch(xyGraph);
     initCategorySelection();
 });
@@ -175,8 +173,6 @@ XYGraph.prototype = {
 function XYGraphArea(containerSelector, w, h, xIsLog, yIsLog) {
     this.width = w;
     this.height = h;
-    this.paddingRight = 100;
-    this.paddingBottom = 120;
     this.xMaxAxisRange = new Range(0, 0);
     this.yMaxAxisRange = new Range(0, 0);
     this.xCurrentAxisRange = new Range(0, 0);
@@ -199,11 +195,11 @@ function XYGraphArea(containerSelector, w, h, xIsLog, yIsLog) {
 
     this.itemContainer = this.createItemContainer(w, h).appendTo(td11);
     this.xAxisScale = this.xAxisIsLogScale
-        ? new LogAxisScale(td21, w, 34, ScaleMode.HORIZONTAL)
-        : new AxisScale(td21, w, 34, ScaleMode.HORIZONTAL);
+        ? new LogAxisScale(td21, w, 34, ScaleMode.HORIZONTAL, "円")
+        : new AxisScale(td21, w, 34, ScaleMode.HORIZONTAL, "円");
     this.yAxisScale = this.yAxisIsLogScale
-        ? new LogAxisScale(td12, 100, h, ScaleMode.VERTICAL)
-        : new AxisScale(td12, 100, h, ScaleMode.VERTICAL);
+        ? new LogAxisScale(td12, 100, h, ScaleMode.VERTICAL, "位")
+        : new AxisScale(td12, 100, h, ScaleMode.VERTICAL, "位");
 
     var offset = $(containerSelector).offset();
     this.selector = new Selector(offset.left,
@@ -430,23 +426,37 @@ XYGraphArea.prototype = {
     },
 
     setMaxAxisRange: function(xRange, yRange) {
-        // マージンを足す
-        var extraRight = (this.paddingRight
-                          * xRange.getDifference()
-                          / this.width);
-        xRange.last += extraRight;
-
-        yRange.last = Math.exp(
-            yRange.getLogLast()
-                + (this.paddingBottom
-                   * yRange.getLogDifference()
-                   / this.height));
-
-        this.xMaxAxisRange = xRange;
-        this.yMaxAxisRange = yRange;
+        var paddingRight = 100;
+        var paddingBottom = 120;
+        
+        this.xMaxAxisRange = this.extendRange(xRange,
+                                              paddingRight,
+                                              this.width,
+                                              this.xAxisIsLogScale);
+        this.yMaxAxisRange = this.extendRange(yRange,
+                                              paddingBottom,
+                                              this.height,
+                                              this.yAxisIsLogScale);
         if (this.rangeHistories.length == 0) {
             this.setCurrentAxisRange(xRange, yRange);
         }
+    },
+
+    extendRange: function(range, lastPaddingPixel, lengthPixel, isLog) {
+        if (isLog) {
+            range.last = Math.exp(
+                range.getLogLast()
+                    + (lastPaddingPixel
+                       * range.getLogDifference()
+                       / lengthPixel));
+        } else {
+            range.last =
+                range.last
+                + (lastPaddingPixel
+                   * range.getDifference()
+                   / lengthPixel);
+        }
+        return range;
     },
 
     setCurrentAxisRange: function(xRange, yRange) {
@@ -648,6 +658,7 @@ XYGraphItem.prototype = {
     createImage: function() { // Thumbnail Image
         var self = this;
         var thumb = this.getTinyImageInfo();
+        ////var thumb = this.getMediumImageInfo();
         return $("<img/>").attr({
             src: thumb.url
         }).css({
@@ -1013,11 +1024,12 @@ var ScaleMode = {
  * AxisScale
  * Abstract Class
  */
-function AxisScale(container, w, h, scaleMode) {
+function AxisScale(container, w, h, scaleMode, unit) {
     this.markColor = "#CCCCCC";
     this.width = w;
     this.height = h;
     this.scaleMode = scaleMode || ScaleMode.HORIZONTAL;
+    this.unit = unit || "";
     this.textClassName = "_canvas_text_";
     
     this.innerContainer = $("<div/>").css({
@@ -1063,7 +1075,7 @@ AxisScale.prototype = {
         if (pos > this.getScaleLength()) return;
 
         var self = this;
-        var span = $("<span/>").text(text).attr({
+        var span = $("<span/>").text(text + this.unit).attr({
             "class": self.textClassName
         }).css({
             position: "absolute",
@@ -1123,11 +1135,12 @@ AxisScale.prototype = {
             var pos = this.getScaleLength() - rightOffset - interval * count;
             if (pos < 0) break;
             this.drawMark(pos, lineWidth, lineLength);
-            if (labelIsShown) {
+            //if (labelIsShown) {// TODO: 判定を距離に変える
+            if (interval > 40) {
                 var value = rightScaleValue - unit * count;
                 if (!labeledNumberTable[value]) {
                     this.appendText(value.toString(),
-                                    pos,
+                                    pos - 3,
                                     lineLength);
                     labeledNumberTable[value] = true;
                 }
@@ -1165,8 +1178,8 @@ AxisScale.prototype = {
 
 var LogAxisScale = extend(
     AxisScale,
-    function(container, w, h, scaleMode) {
-        this.base(container, 100, h, scaleMode);
+    function(container, w, h, scaleMode, unit) {
+        this.base(container, 100, h, scaleMode, unit);
     },
     {
         getLogPos: function(value, range) {
@@ -1181,12 +1194,12 @@ var LogAxisScale = extend(
             this.removeAllTexts();
 
             var prevPos = 0;
-            for (var i=0; i<=6; i++) {
+            for (var i=0; i<=6; i++) { // TODO: 6をなんとかする
                 var value = Math.pow(10, i);
                 var pos = this.getLogPos(value, range);
                 if (pos > this.getScaleLength()) return;
                 this.drawMark(pos, 3, 14);
-                this.appendText(value.toString() + " 位",
+                this.appendText(value.toString(),
                                 pos - 10,
                                 14 + 3);
                 prevPos = pos;
