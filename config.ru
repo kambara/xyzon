@@ -1,10 +1,6 @@
 require 'appengine-rack'
 require 'main'
 
-AppEngine::Rack.configure_app(
-        :application => "xy-zon",
-        :version => "0-1")
-
 configure :development do
   class Sinatra::Reloader < ::Rack::Reloader
     def safe_load(file, mtime, stderr)

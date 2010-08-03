@@ -4,17 +4,22 @@ TODO:
   - Y軸を逆転 原点を上にする
   - log軸指定をXYGraphAreaでやる。XYGraphはlogを意識しない。
   - 下と右のマージン
+- v0.2.0
+  - 動く
+  - 大きさに強弱を付ける
+    - 大きい画像、小さい画像、文字だけ、点
+    - 大きい画像は重ならないようにする
+
 - ズーム時どこにいるか
 - 商品キープ（気になるチェック）
 - 複数軸
 - 戻る・進む (URL切り替え？複数グラフがあったときどうするか。あくまで補助的？)
 - デザイン
-- カテゴリ自動選択
 */
 
 $(function() {
     $(".unselectable").unselectable();
-    var xyGraph = new XYGraph(900, 500);
+    var xyGraph = new XYGraph(700, 500);
     new AmazonSearch(xyGraph);
     initCategorySelection();
 });
@@ -621,6 +626,9 @@ XYGraphItem.prototype = {
     getMediumImageInfo: function() {
         return new ImageInfo(this.item, "MediumImage");
     },
+    getLargeImageInfo: function() {
+        return new ImageInfo(this.item, "LargeImage");
+    },
     getRating: function() {
         return this.item.find("CustomerReviews > AverageRating").number() || 2.5;
     },
@@ -659,20 +667,27 @@ XYGraphItem.prototype = {
         var self = this;
         var thumb = this.getTinyImageInfo();
         ////var thumb = this.getMediumImageInfo();
-        return $("<img/>").attr({
-            src: thumb.url
-        }).css({
+
+        var w = Math.round(thumb.width  * self.getImageScale());
+        var h = Math.round(thumb.height * self.getImageScale());
+
+        var padding = 3;
+        var container = $("<div/>").css({
             position: "absolute",
             left: 0,
             top: 0,
-            width:  Math.round(thumb.width  * self.getImageScale()),
-            height: Math.round(thumb.height * self.getImageScale()),
-            //display: "block",
             cursor: "pointer",
             border: "2px solid #FFFFFF",
-            padding: 3,
+            "padding-left": padding,
+            "padding-top":  padding,
+            "padding-bottom": padding,
+            width: w + padding,
+            "min-width": 60,
+            height: h + 12*2 + padding * 3,
             "background-color": "#DDDDDD",
-            "z-index": self.getZIndex()
+            "z-index": self.getZIndex(),
+            "line-height": "1em",
+            overflow: "hidden"
         }).mouseover(function() {
             self.onMouseover();
         }).mouseout(function() {
@@ -682,6 +697,22 @@ XYGraphItem.prototype = {
         }).mousemove(function(event) {
             event.preventDefault();
         });
+
+        var img = $("<img/>").attr({
+            src: thumb.url
+        }).css({
+            width: w,
+            height: h
+        }).appendTo(container);
+
+        var title = $("<span/>").text(
+            this.getTitle()
+        ).css({
+            "font-size": 12,
+            "line-height": 0
+        }).appendTo(container);
+
+        return container;
     },
 
     highlight: function() {
@@ -799,34 +830,81 @@ XYGraphItem.prototype = {
     },
 
     animateMoveTo: function(x, y) {
+        this._x = x;
+        this._y = y;
+        var self = this;
         this.image.stop();
         this.image.animate({
             left: x,
             top: y
-        }, "fast");
+        }, {
+            duration: "fast",
+            complete: function() {
+                self.moveRandom();
+            }
+        });
+    },
+
+    moveRandom: function() {
+        var self = this;
+        setTimeout(function() {
+            self.moveRandomLeft();
+        }, 1000 + Math.random() * 5000);
+    },
+
+    moveRandomLeft: function() {
+        var self = this;
+        this.image.animate({
+            left: this._x - self.image.width() * Math.random(),
+            top: this._y - self.image.height() * Math.random()
+        }, {
+            duration: "slow",
+            complete: function() {
+                setTimeout(function() {
+                    self.moveRandomRight();
+                }, 1000 + Math.random() * 4000);
+            }
+        });
+    },
+
+    moveRandomRight: function() {
+        var self = this;
+        this.image.animate({
+            left: this._x,
+            top: this._y
+        }, {
+            duration: "slow",
+            complete: function() {
+                setTimeout(function() {
+                    self.moveRandomLeft();
+                }, 1000 + Math.random() * 4000);
+            }
+        });
     },
 
     onMouseover: function() {
+        /*
         if (!this.tipIsActive) return;
         if (this.tip) {
             this.tip.qtip("destroy");
             delete this.tip
         }
-        this.tip = this.createTip();
+        this.tip = this.createTip();*/
         this.highlight();
     },
 
     onMouseout: function() {
         this.offlight();
+        /*
         if (this.tip) {
             this.tip.qtip("destroy");
             delete this.tip
-        }
+        }*/
     },
 
     onMousedown: function(event) {
         event.stopPropagation();
-        this.tip.qtip("hide");
+        //this.tip.qtip("hide");
         if (this.detail) {
             delete this.detail;
         }
@@ -864,7 +942,7 @@ XYGraphDetail.prototype = {
         }).appendTo("body");
 
         // animate
-        var medium = graphItem.getMediumImageInfo();
+        var medium = graphItem.getLargeImageInfo();
         image.animate({
             left: offset.left - (medium.width - graphItem.image.width())/2,
             top: offset.top - (medium.height - graphItem.image.height())/2,
