@@ -1,10 +1,10 @@
-XYzon
+#XYzon
 
-== Install
+## Install
 
   $ sudo gem install google-appengine
 
-== Run
+## Run
 
   $ cd xyzon
   $ dev_appserver.rb .
