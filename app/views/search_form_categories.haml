@@ -1,0 +1,15 @@
+%select(name="category")
+  - [                                                |
+      ["All"],                                       |
+      ["Books", "ForeignBooks"],                     |
+      ["DVD", "Music", "Classical", "VideoGames"],   |
+      ["Electronics", "Software", "OfficeProducts"], |
+      ["Grocery", "Kitchen"],                        |
+      ["Toys", "Hobbies", "Baby"],                   |
+      ["HealthPersonalCare", "Beauty"],              |
+      ["Apparel", "Shoes", "Watches", "Jewelry"],    |
+      ["HomeImprovement", "SportingGoods"],          |
+    ].each_with_index do |categories, index|         |
+    - categories.each do |category|
+
+      = haml :option_category, :locals => { :category => category, :index => index }, :layout => false

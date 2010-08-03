@@ -1,0 +1,11 @@
+.body.center
+  %h1.index XYzon
+  %form.search.index(method = "get"
+               action = "/search")
+    %input.keyword.bold(type = "text"
+                        name = "keyword"
+                        value = @keyword)
+    %input.large-font(type = "submit"
+                      value = "商品検索")
+    %br
+    = haml :search_form_categories, :layout => false

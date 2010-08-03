@@ -1,0 +1,4 @@
+class Settings
+  AMAZON_ACCESS_KEY = ""
+  AMAZON_SECRET_KEY = ""
+end

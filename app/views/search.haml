@@ -1,0 +1,39 @@
+.header.clearfix
+  %table
+    %tr
+      %td
+        %h1.top-left-logo
+          %a(href='/') XYzon
+      %td
+        = haml :search_form, :layout => false
+
+.body
+  %table.graph
+    %tr
+      %td.unselectable
+        #graph-area
+      %td.bold.default-cursor(valign="top")
+        ↑
+        %br/
+        売れ筋
+    %tr
+      %td
+        %span.bold.default-cursor(style="float:right;")
+          → 高い
+        %span.bold.default-cursor
+          安い ←
+      %td
+
+
+%script{:type => 'text/javascript',
+        :src  => 'http://ajax.googleapis.com/ajax/libs/jquery/1.3.2/jquery.min.js'}
+
+/ [if IE]
+  %script{:type => 'text/javascript',
+          :src  => '/js/excanvas.compiled.js'}
+
+%script{:type => 'text/javascript',
+        :src  => '/js/jquery.qtip-1.0.0-rc3.js'}
+
+%script{:type => 'text/javascript',
+        :src  => '/js/main.js'}
