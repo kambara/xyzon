@@ -1,5 +1,9 @@
 require 'appengine-rack'
-require 'main'
+require 'config/settings'
+
+Dir["./app/**/*.rb"].each {|file|
+  require file
+}
 
 configure :development do
   class Sinatra::Reloader < ::Rack::Reloader
