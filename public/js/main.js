@@ -1446,7 +1446,6 @@ function ImageInfo(item, type) {
     }
 }
 
-
 /**
  * extend function
  * <http://plusb.jp/blog/?p=102>

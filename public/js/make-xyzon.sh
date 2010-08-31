@@ -1,0 +1,1 @@
+./closure-library/closure/bin/build/closurebuilder.py --root=closure-library --root=xyzon --namespace="xyzon" --output_mode=script --output_file=xyzon.js

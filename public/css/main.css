@@ -1,22 +1,16 @@
 body {
     font-family: 'Trebuchet MS', sans-serif;
-    margin: 0 0;
-    padding: 0 0 100px 0;
-}
-
-.header {
-    padding: 20px 50px 0px 50px;
-}
-
-.body {
-    padding: 0px 50px;
+    margin: 0;
+    padding: 0;
+    background-color: #FFBF00;
+    overflow: hidden;
 }
 
 /*
  * Logo
  */
 h1.top-left-logo {
-    margin: 0 0.8em 0 0;
+    margin: 0 0.6em 0 0.6em;
     font-size: 200%;
 }
 
@@ -26,7 +20,7 @@ h1.index {
 
 h1 a {
     text-decoration: none;
-    color: #000;
+    color: #333;
 }
 
 table.graph {
@@ -57,7 +51,7 @@ form.search select {
 
 form.search input.keyword {
     padding: 2px 4px;
-    border: 2px solid #CCC;
+    border: 2px solid #555;
     width: 14em;
 }
 
@@ -65,10 +59,10 @@ form.top {
     line-height: 1.4em;
 }
 
-
 select option.even {
     background-color: #EEEEEE;
 }
+
 select option.odd {
     background-color: #CDCDCD;
 }
@@ -79,12 +73,45 @@ a.recommend {
 }
 
 form div.keyword-box {
-    background-color: #EDEDED;
-    padding: 6px 8px;
+    /* background-color: #EDEDED; */
+    padding: 0px;
 }
 
 form div.categories-box {
-    margin: 6px;
+    margin: 3px 0px;
+}
+
+#graph-area {
+    margin-left: 130px;
+}
+
+#x-menu-box {
+    font-weight: bold;
+    width: 120px;
+    background-color: #FF7F00;
+    text-align: right;
+    position: absolute;
+    bottom: 0;
+    padding: 5px;
+    z-index: 500;
+}
+
+#x-menu-box select {
+    font-size: 120%;
+}
+
+#y-menu-box {
+    font-weight: bold;
+    width: 200px;
+    background-color: #FF7F00;
+    position: absolute;
+    padding: 5px;
+    text-align: right;
+    z-index: 500;
+}
+
+#y-menu-box select {
+    font-size: 120%;
 }
 
 /*

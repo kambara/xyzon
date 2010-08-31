@@ -14,12 +14,9 @@ get '/search' do
   @keyword = params['keyword']
   @recommend_categories =
     Amazon::ItemSearch.recommend_categories(@keyword)
-
   category = params['category']
-  unless category == 'All'
-    @recommend_categories.delete category
-  end
-  haml :search
+  @recommend_categories.delete category unless category == 'All'
+  haml :search2
 end
 
 get '/test' do

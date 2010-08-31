@@ -1,0 +1,37 @@
+#header.clearfix
+  %table
+    %tr
+      %td
+        %h1.top-left-logo
+          %a(href='/') XYzon
+      %td
+        = haml :search_form, :layout => false
+
+#graph-area
+
+#x-menu-box
+  %select
+    %option(value='price') Price
+  %br
+  ←
+  %span 安い
+#y-menu-box
+  %select
+    %option(value='a') 売れ筋
+  %span 売れ筋
+  ↑
+
+%script{:type => 'text/javascript',
+        :src  => '/js/jquery-1.4.2.js'}
+%script{:type => 'text/javascript',
+        :src  => '/js/excanvas.compiled.js'}
+%script{:type => 'text/javascript',
+        :src  => '/js/jquery.qtip-1.0.0-rc3.js'}
+%script{:type => 'text/javascript',
+        :src  => '/js/closure-library/closure/goog/base.js'}
+%script{:type => 'text/javascript',
+        :src  => '/js/xyzon-deps.js'}
+:javascript
+  goog.require('xyzon');
+:javascript
+  xyzon.main();
