@@ -8,7 +8,7 @@ require 'config/settings'
 module Amazon
   class ItemSearch
     def self.search(category, keyword, page)
-      group = "SalesRank,Offers,OfferSummary,ItemAttributes,Images,Reviews"
+      group = "SalesRank,Offers,OfferSummary,ItemAttributes,Images,Reviews,Medium"
       sort = if (category == "All")
              then nil
              else "salesrank" end

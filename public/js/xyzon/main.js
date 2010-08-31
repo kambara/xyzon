@@ -1,21 +1,24 @@
 goog.provide('xyzon');
 
 goog.require('goog.dom');
+goog.require('goog.dom.forms');
 goog.require('goog.style');
 goog.require('goog.events');
 goog.require('goog.array');
 goog.require('xyzon.Console');
-goog.require('xyzon.XYGraph');
+goog.require('xyzon.XYGraphArea');
 goog.require('xyzon.AmazonSearch');
 
 xyzon.main = function() {
-    $(".unselectable").unselectable();
-    //this.setUnselectable();
-    var xyGraph = new xyzon.XYGraph();
-    new xyzon.AmazonSearch(xyGraph);
+    var xyGraphArea = new xyzon.XYGraphArea();
+    new xyzon.AmazonSearch(xyGraphArea);
     initCategorySelection();
+    xyzon.initAxisMenu(xyGraphArea);
 }
 
+/**
+ * カテゴリメニューを切り替えると再検索
+ */
 function initCategorySelection() {
     $("form.search").each(function(i, formElem) {
         $(formElem).find("select[name='category']").change(
@@ -25,12 +28,27 @@ function initCategorySelection() {
     });
 }
 
-xyzon.setUnselectable = function() {
-    var elems = goog.dom.getElementsByTagNameAndClass('*', 'unselectable');
-    goog.array.forEach(elems, function(elem) {
-        goog.style.setUnselectable(elem, true);
-    });
-}
+xyzon.initAxisMenu = function(xyGraphArea) {
+    var xAxisMenu = goog.dom.getElement('x-axis-menu');
+    goog.events.listen(
+        xAxisMenu,
+        goog.events.EventType.CHANGE,
+        function(event) {
+            var value = goog.dom.forms.getValue(xAxisMenu);
+            $.log(value);
+            xyGraphArea.switchXAxis(value);
+        });
+
+    var yAxisMenu = goog.dom.getElement('y-axis-menu');
+    goog.events.listen(
+        yAxisMenu,
+        goog.events.EventType.CHANGE,
+        function(event) {
+            var value = goog.dom.forms.getValue(yAxisMenu);
+            $.log(value);
+            xyGraphArea.switchYAxis(value);
+        });
+};
 
 //
 // Extend jQuery

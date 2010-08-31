@@ -7,18 +7,30 @@
       %td
         = haml :search_form, :layout => false
 
-#graph-area
-
 #x-menu-box
-  %select
-    %option(value='price') Price
+  %select#x-axis-menu
+    %option(value='price') 値段
+    %option(value='SalesRank') 売れ筋
+    %option(value='ReleaseDate') 発売日
+    %option(value='Weight') 重さ
+    %option(value='TotalReviews') レビュー数
+    %option(value='AverageRating') 平均評価
   %br
   ←
-  %span 安い
+  %span#x-axis-label
+    安い
+
 #y-menu-box
-  %select
-    %option(value='a') 売れ筋
-  %span 売れ筋
+  %select#y-axis-menu
+    %option(value='SalesRank') 売れ筋
+    %option(value='ReleaseDate') 発売日
+    %option(value='Weight') 重さ
+    %option(value='TotalReviews') レビュー数
+    %option(value='AverageRating') 平均評価
+    -# %option(value='DisplaySize') ディスプレイサイズ
+    -# %option(value='OpticalZoom') 光学ズーム
+  %span#y-axis-label
+    売れ筋
   ↑
 
 %script{:type => 'text/javascript',

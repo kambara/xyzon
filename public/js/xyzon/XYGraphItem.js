@@ -1,4 +1,5 @@
 goog.provide('xyzon.XYGraphItem');
+
 goog.require('xyzon.ImageInfo');
 goog.require('xyzon.XYGraphDetail');
 
@@ -6,6 +7,29 @@ xyzon.XYGraphItem = function(itemElem) {
     this.item = $(itemElem);
     this.tipIsActive = true;
     this.image = this.createImage();
+};
+
+xyzon.XYGraphItem.prototype.getAxisValue = function(axisType) {
+    switch(axisType) {
+    case xyzon.AxisType.SalesRank:
+        return this.getSalesRank();
+        break;
+    case xyzon.AxisType.Price:
+        return this.getPrice();
+        break;
+    case xyzon.AxisType.ReleaseDate:
+        return this.getReleaseDateDaysAgo();
+        break;
+    case xyzon.AxisType.Weight:
+        return this.getWeightKg();
+        break;
+    case xyzon.AxisType.TotalReviews:
+        return this.getTotalReviews();
+        break;
+    case xyzon.AxisType.AverageRating:
+        return this.getRating();
+        break;
+    }
 };
 
 xyzon.XYGraphItem.prototype.getDetailPageURL = function() {
@@ -42,6 +66,59 @@ xyzon.XYGraphItem.prototype.getPublicationDate = function() {
 
 xyzon.XYGraphItem.prototype.getReleaseDate = function() {
     return this.item.find("ItemAttributes > ReleaseDate").eq(0).text();
+};
+
+xyzon.XYGraphItem.prototype.getDate = function() {
+    var dateStr = this.getDateString();
+    if (dateStr) {
+        var ary = dateStr.split('-');
+        if (ary.length == 3) {
+            return new Date(parseInt(ary[0]),
+                            parseInt(ary[1]),
+                            parseInt(ary[2]));
+        } else if (ary.length == 2) {
+            return new Date(parseInt(ary[0]),
+                            parseInt(ary[1]))
+        }
+    }
+    return null;
+};
+
+xyzon.XYGraphItem.prototype.getReleaseDateAsTime = function() {
+    var date = this.getDate();
+    if (date) {
+        return date.getTime();
+    }
+    return null;
+};
+
+xyzon.XYGraphItem.prototype.getReleaseDateDaysAgo = function() {
+    var time = this.getReleaseDateAsTime();
+    if (!time) {
+        return null;
+    }
+    var timeAgo = (new Date()).getTime() - time;
+    return timeAgo/(24*60*60*1000);
+}
+
+xyzon.XYGraphItem.prototype.getDisplaySize = function() {
+    // 少ない
+    return this.item.find('ItemAttributes > DisplaySize').eq(0).text() || '';
+};
+
+xyzon.XYGraphItem.prototype.getMonitorSize = function() {
+    // ほとんど全く無い
+    return this.item.find('ItemAttributes > MonitorSize').eq(0).text() || '';
+};
+
+xyzon.XYGraphItem.prototype.getWeight = function() {
+    return this.item.find('ItemAttributes > PackageDimensions > Weight').eq(0).text() || '';
+};
+
+xyzon.XYGraphItem.prototype.getWeightKg = function() {
+    var w = this.getWeight();
+    if (!w) return null;
+    return parseInt(w) * 0.45 / 100;
 };
 
 xyzon.XYGraphItem.prototype.getPrice = function() {
@@ -269,6 +346,14 @@ xyzon.XYGraphItem.prototype.appendTo = function(container) { // obsolete
 
 xyzon.XYGraphItem.prototype.render = function(container) {
     goog.dom.appendChild(container, this.image.get(0));
+};
+
+xyzon.XYGraphItem.prototype.show = function() {
+    goog.style.showElement(this.image.get(0), true);
+};
+
+xyzon.XYGraphItem.prototype.hide = function() {
+    goog.style.showElement(this.image.get(0), false);
 };
 
 xyzon.XYGraphItem.prototype.moveTo = function(x, y) {

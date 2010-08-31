@@ -97,12 +97,12 @@ form div.categories-box {
 }
 
 #x-menu-box select {
-    font-size: 120%;
+    font-size: 110%;
 }
 
 #y-menu-box {
     font-weight: bold;
-    width: 200px;
+    width: 250px;
     background-color: #FF7F00;
     position: absolute;
     padding: 5px;
@@ -111,7 +111,7 @@ form div.categories-box {
 }
 
 #y-menu-box select {
-    font-size: 120%;
+    font-size: 110%;
 }
 
 /*

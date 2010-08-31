@@ -36,6 +36,7 @@ xyzon.AmazonSearch.prototype.onComplete = function() {
 };
 
 xyzon.AmazonSearch.prototype.parseXML = function(xml, page) {
+    //$.log(xml);
     var items = $(xml).find("Items");
     if (items.find("Request > IsValid").text() == "False") {
         $.log("Invalid: page" + page);
@@ -51,7 +52,7 @@ xyzon.AmazonSearch.prototype.parseXML = function(xml, page) {
     }
     var self = this;
     items.find("Item").each(function() {
-        self.xyGraph.addItem(this);
+        self.xyGraph.appendItem(this);
     });
 };
 

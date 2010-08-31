@@ -11,7 +11,7 @@ var ScaleMode = {
 xyzon.AxisScale = function(thick, scaleMode, unit) {
     this.markColor = "#333";
     this.thickness = thick;
-    this.length = 300;
+    this.length = 1;
     this.scaleMode = scaleMode || ScaleMode.HORIZONTAL;
     this.unit = unit || "";
     this.textClassName = "_canvas_text_";
@@ -29,10 +29,21 @@ xyzon.AxisScale = function(thick, scaleMode, unit) {
     goog.dom.appendChild(document.body,
                          this.innerContainer);
     // Init Canvas
-    this.canvas = goog.dom.createDom('canvas');
+    this.canvas = goog.dom.createDom('canvas', {
+        width: 10,
+        height: 10
+    });
     goog.dom.appendChild(this.innerContainer,
                          this.canvas);
     this.ctx = this.getContext(this.canvas);
+};
+
+xyzon.AxisScale.prototype.remove = function() {
+    if (this.innerContainer) {
+        goog.dom.removeNode(this.canvas);
+        goog.dom.removeNode(this.ctx);
+        goog.dom.removeNode(this.innerContainer);
+    }
 };
 
 xyzon.AxisScale.prototype.getWidth = function() {
@@ -135,12 +146,28 @@ xyzon.AxisScale.prototype.update_ = function() {
                                            (num100000Marks <= 1),
                                            labeledNumberTable);
         if (num10000Marks <= 4) {
-            this.drawMarks(this.range,
-                           1000,
-                           1,
-                           8,
-                           (num10000Marks <= 1),
-                           labeledNumberTable);
+            var num1000Marks = this.drawMarks(this.range,
+                                              1000,
+                                              1,
+                                              8,
+                                              (num10000Marks <= 1),
+                                              labeledNumberTable);
+            if (num1000Marks <= 4) {
+                var num100Marks = this.drawMarks(this.range,
+                                                 100,
+                                                 1,
+                                                 8,
+                                                 (num1000Marks <= 1),
+                                                 labeledNumberTable);
+                if (num100Marks <= 4) {
+                    this.drawMarks(this.range,
+                                   10,
+                                   1,
+                                   8,
+                                   (num100Marks <= 1),
+                                   labeledNumberTable);
+                }
+            }
         }
     }
 };
@@ -150,13 +177,22 @@ xyzon.AxisScale.prototype.drawMarks = function(range, unit,
                                                lineLength,
                                                labelIsShown,
                                                labeledNumberTable) {
+    if (range.getDifference() < 1) {
+        return 0;
+    }
     var interval = unit * this.getScaleLength() / range.getDifference();
     var rightScaleValue = Math.floor(range.last / unit) * unit;
     var rightOffset = interval * (range.last - rightScaleValue) / unit;
     var count = 0;
     while (true) {
+        if (count > 100) {
+            $.log('Too many!');
+            break;
+        }
+        
         var pos = this.getScaleLength() - rightOffset - interval * count;
         if (pos < 0) break;
+
         this.drawMark(pos, lineWidth, lineLength);
         //if (labelIsShown) {// TODO: 判定を距離に変える
         if (interval > 40) {
@@ -189,7 +225,8 @@ xyzon.AxisScale.prototype.drawMark = function(pos, lineWidth, lineLength) {
     }
 };
 
-xyzon.AxisScale.prototype.drawLine = function(x1, y1, x2, y2, lineWidth, lineLength) {
+xyzon.AxisScale.prototype.drawLine = function(x1, y1, x2, y2,
+                                              lineWidth, lineLength) {
     this.ctx.strokeStyle = "#333";
     this.ctx.lineWidth = lineWidth;
     this.ctx.beginPath();
